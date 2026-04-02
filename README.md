@@ -232,3 +232,108 @@ pub fn step(self: *Self) !f64 {
 
 4.2 ChaosCoreKernel integráció
 A ReasoningOrchestrator a ChaosCoreKernel-re mutató hivatkozással inicializálódik. A MetaPhase során az orchestrator elemezni tudja a pattern_captures adatokat, és jelezhet a ChaosCoreKernel-nek, hogy bizonyos TaskDescriptor elemeket prioritásként kezeljen, amelyek illeszkednek a felfedezett szimmetriákhoz.
+
+A CREV Folyamat (Tartalom Kinyerése, Relációs Érvényesítés és Bizonyítás) egy többlépcsős adatfeldolgozási architektúra, amelyet úgy terveztek, hogy strukturálatlan adatfolyamokat alakítson át ellenőrzött, magas hűségű relációs ismeretekké a JAIDE ökoszisztémán belül. Ez az átjáró a nyers természetes nyelvű/jelkészlet-szintű adatfolyamok és a SelfSimilarRelationalGraph (NSIR) között, amely egy szigorú kinyerési és érvényesítési életciklust valósít meg.
+
+Folyamat Architektúra és Életciklus
+
+A CREVPipeline az adatokat öt különböző szakaszon keresztül kezeli, amelyeket az ExtractionStage felsorolás határoz meg. Mindegyik szakasz egy átalakítási vagy ellenőrzési lépést jelent, amely szükséges az ismeretgráf integritásának fenntartásához.
+
+Kinyerési Szakaszok
+A folyamat lineárisan halad végig az alábbi szakaszokon:
+
+Szakasz	Azonosító	Leírás
+Tokenizálás	tokenization	Nyers bemeneti adatfolyam feldolgozása és kezdeti szegmentálása.
+Triplet Kinyerés	triplet_extraction	Alany-Kapcsolat-Tárgy (SRO) struktúrák azonosítása.
+Érvényesítés	validation	Kinyert tripletek konzisztenciájának és logikai koherenciájának ellenőrzése.
+Integráció	integration	Érvényesített tripletek egyesítése a SelfSimilarRelationalGraph-be.
+Indexelés	indexing	A KnowledgeGraphIndex frissítése gyors lekérdezés céljából.
+
+Adatfolyam Ábra: Természetes Nyelv a Relációs Tudásig
+Ez az ábra bemutatja, hogyan alakul át a nyers szöveg kódszintű entitásokká a CREVPipeline-ban.
+
+Ismerettárolás
+CREV Folyamat (Kód Entitás Tér)
+Természetes Nyelv Tér
+Pufferelve
+Tokenizálva
+Kinyerve
+Érvényesítve
+Integrálva
+Indexelve
+Nyers Szöveges Adatfolyam
+StreamBuffer
+TokenizerConfig
+CREVPipeline.processStream()
+RelationalTriplet
+ValidationResult
+SelfSimilarRelationalGraph (NSIR)
+KnowledgeGraphIndex
+
+Alapvető Adatszerkezetek
+
+RelationalTriplet
+A RelationalTriplet a folyamat elsődleges ismeretegysége. Beágyazza a két entitás közötti szemantikai kapcsolatot, és metaadatokat hordoz a származás és bizalomszint figyelembevételéhez.
+
+Identitás: Az alany, kapcsolat és tárgy sztringjei határozzák meg.
+Bizalom: Egy f64 érték (0,0 és 1,0 közé szorítva), amely a kinyerési bizonyosságot jelöli
+Forrás Hash: Egy SHA-256 hash, amelyet a hashTripletIdentity generál a tudás eredetének nyomon követésére
+Metaadatok: Egy StringHashMap, amely kiterjeszthető attribútumokat tesz lehetővé, mint például időbélyegek vagy forrás URL-ek
+
+ValidationResult
+Mielőtt egy triplet integrálódna a gráfba, a validációs motor dolgozza fel, aminek eredménye egy ValidationResult.
+
+Állapot: Jelzi, hogy a triplet érvényes, érvénytelen vagy bizonytalan.
+Koherencia Pontszám: Egy metrika, amely azt méri, mennyire illeszkedik a triplet a meglévő gráf mintázataihoz.
+Konfliktus Lista: Egy RelationalTriplet objektumokból álló tömb, amelyek ellentmondanak az új információnak.
+
+Ismeret Kinyerése és Indexelése
+
+A folyamat egy KnowledgeGraphIndex és egy TripletIndex használatával kezeli a szövegfolyamokból kinyert nagy dimenziójú kapcsolatokat.
+
+TripletIndex és RelationPattern
+A TripletIndex lehetővé teszi az extrahált ismeretbázis hatékony lekérdezését. A RelationPattern-del együttműködve azonosítja a gyakran előforduló szemantikai struktúrákat.
+
+Komponens	Szerep
+TripletIndex	RelationalTriplet hivatkozásokat tárol, alany és tárgy hash-ek alapján indexelve.
+RelationPattern	Általános kapcsolatok (pl. „is-a”, „part-of”) sablonjait határozza meg a kinyerés felgyorsításához.
+StreamBuffer	Egy csúszó ablakú puffer, amely az adatfolyam aszinkron érkezését kezeli a CREVPipeline számára.
+
+Integráció a ChaosCore-ral
+A CREVPipeline a ChaosCoreKernel-t használja az autonóm feladatütemezéshez az integrációs fázisban. Amikor egy triplet integrálódik, a folyamat egy ChaosCoreKernel feladatot indíthat a kapcsolatok továbbterjedésének propagálására vagy az élsúlyok frissítésére a SelfSimilarRelationalGraph-ban.
+
+ChaosCoreKernel
+SelfSimilarRelationalGraph
+RelationalTriplet
+CREVPipeline
+ChaosCoreKernel
+SelfSimilarRelationalGraph
+RelationalTriplet
+CREVPipeline
+init(allocator, s, r, o)
+validate(RT)
+addNode(RT.subject)
+addNode(RT.object)
+addEdge(RT.subject, RT.object, RT.relation)
+scheduleTask(PropagateEntanglement)
+updateEdgeWeights()
+
+Folyamat Statisztikák és Eredmények
+
+A folyamat végrehajtása egy PipelineResult-ot ad vissza, amely PipelineStatistics-t tartalmaz. Ez a telemetria kritikus fontosságú a rendszer „Tudás Sebességének” (Knowledge Velocity) figyeléséhez.
+
+PipelineStatistics Mezők
+triplets_extracted: Azonosított SRO struktúrák teljes száma.
+validation_rate: Az érvényesítési szakaszon sikeresen átment tripletek százalékos aránya.
+integration_latency: Az idő, amely a tripletek NSIR gráfba történő integrálásához szükséges.
+token_throughput: Másodpercenként feldolgozott tokenek száma.
+
+Implementációs Részletek: TokenizerConfig
+
+A TokenizerConfig struktúra szabályozza az ExtractionStage.tokenization működését. Paramétereket tartalmaz a következőkhöz:
+
+Maximális Token Hossz: Megakadályozza a buffer túlcsordulását a StreamBuffer-ban.
+Stop Sorozatok: Határozza meg a triplet kinyerés határait.
+Normalizálási Szabályok: Kezeli a kis- és nagybetűk közötti különbségeket és a felesleges szóközök eltávolítását a hashelés előtt.
+
+
