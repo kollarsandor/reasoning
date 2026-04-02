@@ -336,4 +336,84 @@ Maximális Token Hossz: Megakadályozza a buffer túlcsordulását a StreamBuffe
 Stop Sorozatok: Határozza meg a triplet kinyerés határait.
 Normalizálási Szabályok: Kezeli a kis- és nagybetűk közötti különbségeket és a felesleges szóközök eltávolítását a hashelés előtt.
 
+A Fraktál Csomópont Adatrendszer (FNDS) egy speciális hierarchikus indexelési és tárolási alrendszer a JAIDE mag relációs modulján belül. A fraktális önhasonlóságot használja fel összetett relációs adatok szervezésére és lekérésére, biztosítva egy többszintű fastruktúrát, amely tükrözi az Önhasonló Relációs Gráf (NSIR) rekurzív jellegét.
 
+FNDS Rendszerarchitektúra  
+Az FNDS-t az FNDSManager kezeli, amely több FractalTree példányt koordinál. Minden fa FractalLevel objektumokból áll, amelyek FractalNodeData és FractalEdgeData elemeket tartalmaznak. Ez az architektúra lehetővé teszi, hogy a rendszer az adatokat különböző skálákon ábrázolja, ahol a magasabb szintek absztrakt összefoglalókat, az alsóbb szintek pedig nagy pontosságú részleteket tartalmaznak.
+
+Kód Entitás Térkép: FNDS Alapvető Komponensei
+
+Kód Entitás Tér (src/core_relational/fnds.zig)  
+Természetes Nyelvi Tér  
+Fraktál Kezelő  
+Önhasonlósági Index  
+Rekurzív Adatfa  
+Gyorsítótár Mechanizmus  
+FNDSManager  
+SelfSimilarIndex  
+FractalTree  
+LRUCache  
+FractalLevel  
+FractalNodeData  
+FractalEdgeData  
+PatternLocation  
+
+Adatszerkezetek  
+FractalNodeData és FractalEdgeData  
+
+Az FNDS alapvető tárolási egységei rekurzív hasítást és skálázást támogatóan lettek kialakítva.
+
+FractalNodeData: A csomópont azonosítóját, nyers adatot, súlyt és skálázási tényezőt tárol. Tartalmaz egy fractal_signature ([32]u8) mezőt, amely a csomópont tulajdonságainak SHA-256 hasítványa.  
+FractalEdgeData: A fraktálcsomópontok közötti kapcsolatokat reprezentálja. Az éleket típusokra bontja: hierarchikus, testvér, különböző szintek közötti vagy önhasonló.  
+
+FractalTree és FractalLevel  
+
+A FractalTree a csomópontokat FractalLevel által meghatározott hierarchiába szervezi.
+
+FractalLevel: Egy hash mapot tartalmaz csomópontokból és egy él-listát, amely egy adott fraktálszintre jellemző.  
+Önhasonlóság: Az N. szinten lévő csomópontok az N-1. szint egy részgráfjának aggregált vagy "összezárt" változatát képviselhetik.  
+SelfSimilarIndex  
+
+A SelfSimilarIndex lehetővé teszi a minták keresését a fraktál különböző szintjein. A mintahasítványokat PatternLocation struktúrákhoz rendeli, amelyek azonosítják azt a konkrét tree_id, level_index és node_id helyet, ahol egy minta ismétlődik.
+
+Implementáció és Adatfolyam  
+Az FNDSManager a fraktális műveletek elsődleges belépési pontja, beleértve a fák létrehozását, csomópontok beszúrását és a szintek közötti bejárást.
+
+Adatfolyam: Csomópont Beszúrása és Indexelése  
+
+PLOC  
+LRUCache  
+SelfSimilarIndex  
+FractalTree  
+FNDSManager  
+Külső Hívó  
+PLOC  
+LRUCache  
+SelfSimilarIndex  
+FractalTree  
+FNDSManager  
+Külső Hívó  
+addNode(tree_id, level, data)  
+getLevel(level)  
+insertNode(FractalNodeData)  
+indexPattern(node_signature)  
+create PatternLocation  
+put(node_id, data)  
+return Success  
+
+Kulcsfontosságú Függvények az FNDSManager-ben  
+
+Függvény	Leírás  
+createTree(id)	Létrehoz egy új FractalTree-t és regisztrálja a menedzser regisztrációs táblájába  
+addNodeToLevel(...)	FractalNodeData-t szúr be egy adott szintre, és frissíti a SelfSimilarIndex-et  
+traverseFractal(...)	Egy TraversalCallback függvényt hajt végre szintek mentén, egy megadott TraversalOrder szerint (pl. SzélességiElőször, MélységiElőször vagy SkálaNövekvő)  
+getStatistics()	Visszaad egy FNDSStatistics struktúrát, amely tartalmazza a gyorsítótár találati arányát, memóriahasználatot és az átlagos fa mélységet  
+
+Gyorsítótárazás és Teljesítmény  
+A gyakran hozzáfért fraktális minták magas sebességű elérésének fenntartása érdekében a rendszer egy LRUCache-t valósít meg.
+
+Gyorsítótár Logika: A gyorsítótár FractalNodeData mutatókat tárol. Egy lekérési kérésnél, ha a csomópont megtalálható, akkor a lista elejére kerül („találat”). Ha nem található meg, az FNDSStatistics rögzíti a „nem talált” esetet.  
+Statisztikák Nyomon Követése: Az FNDSStatistics struktúra nyomon követi a cache_hit_ratio és total_patterns_indexed értékeket, hogy az ESSO Optimalizáló (lásd 7.3 szakasz) be tudja állítani a fraktál mélységét az optimális következtetési teljesítmény érdekében.  
+
+Integráció az NSIR-rel  
+Az FNDS biztosítja a strukturális alapot az Önhasonló Relációs Gráfnak az nsir_core.zig fájlban. Míg az NSIR kezeli a kvantumállapotot és az élek minőségét (szuperpozíció, összefonódás), az FNDS a csomópontok fizikai szervezését kezeli, amikor azok önhasonló mintákat mutatnak a tudásgráf különböző felbontásain belül.
