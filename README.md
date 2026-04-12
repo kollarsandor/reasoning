@@ -1,4 +1,4 @@
-Just a little surprise (😉) so you can explore some of Jaide's thought processes at your leisure
+Just a SURPRISE so you can explore some of Jaide's thought processes at your leisure
 The cognitive llm component of Jaide is built on the RSF architecture within the KGRu framework
 
 
